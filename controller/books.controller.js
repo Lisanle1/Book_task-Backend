@@ -5,9 +5,10 @@ const jwt = require('jsonwebtoken');
 // adding books 
 exports.addBooks= async(req,res)=>{
 
-
+try {
+    
 const {title, author, genre, publishedYear} = req.body;
-
+const {id} = req.user;
     const db = getDB();
     //checking same books already exist with same title and author
 
@@ -19,15 +20,14 @@ const {title, author, genre, publishedYear} = req.body;
             message:"Books already added in the lists"
         })
     }
-    const token = req.headers.accesstoken;
-    const decodeUserData= await jwt.verify(token,process.env.SECRET_KEY);
+    
     const payload ={
         title:title,
         author:author,
         genre:genre,
         publishedYear:publishedYear,
         createdAt: new Date(),
-        userId: decodeUserData?.id,
+        userId: id,
     }
 
     await db.collection('books').insertOne(payload);
@@ -37,18 +37,23 @@ const {title, author, genre, publishedYear} = req.body;
         message:"Book added Successfully....",
         Book:payload
     })
-
+} catch (error) {
+    res.json({
+        statusCode:500,
+        message:"Internal Server Error",
+    })
+}
 }
 
 // update the books in the list
 
 exports.updateBooks = async(req,res)=>{
+    try {
     //checking book exist or not
     const id= req.params.id
     const db = getDB();
 
     const existBooks = await db.collection('books').findOne({_id: new ObjectId(id)});
-    console.log('exist books',existBooks)
     if(!existBooks){
         return res.json({
             statusCode:400,
@@ -56,45 +61,57 @@ exports.updateBooks = async(req,res)=>{
         })
     }
     const updatedBooksDetails=req.body
-    console.log(updatedBooksDetails)
-    await db.collection('books').updateOne({_id:new ObjectId(id)},{$Set:{_id:{...updatedBooksDetails}}})
+    await db.collection('books').updateOne({_id:id},{$set:updatedBooksDetails})
 
     res.json({
         statusCode:200,
         message:"Book Updated Successfully...."
     })
+} catch (error) {
+    res.json({
+        statusCode:500,
+        message:"Internal Server Error",
+    })
+}
 }
 
 
 // delete books by id
 
 exports.deleteBooks= async(req,res)=>{
+    try {
     const id=req.params.id;
 
     // checking id is exist or not before delete
     const db = getDB();
 
-    const existBooks = await db.collection('books').findOne({_id: id});
+    const existBooks = await db.collection('books').findOne({_id: new ObjectId(id)});
     if(!existBooks){
         return res.json({
             statusCode:400,
         message:"Book doesn't exist in the list"
         })
     }
-    await db.collection('books').deleteOne({_id:new ObjectId(id)});
+    await db.collection('books').deleteOne({_id : new ObjectId(id)});
 
     res.json({
         statusCode:200,
         message:"Book Deleted Successfully...."
     })
-
+} catch (error) {
+    res.json({
+        statusCode:500,
+        message:"Internal Server Error",
+    })
+}
 }
 
 
 // getting list of books
 
 exports.getBooks= async(req,res)=>{
-    const id=req.params.id;
+    try {
+    const id=req.user.id;
 
     // checking id is exist or not before delete
     const db = getDB();
@@ -110,5 +127,12 @@ exports.getBooks= async(req,res)=>{
     res.json({
        bookLists:existBooks
     })
+
+} catch (error) {
+    res.json({
+        statusCode:500,
+        message:"Internal Server Error",
+    })
+}
 
 }
